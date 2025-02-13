@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Responsive meta tag for mobile devices -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Background Remover</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 15px;
+            margin: 0;
+            background: #fafafa;
+        }
+        h1 {
+            text-align: center;
+            font-size: 1.5em;
+        }
+        input[type="file"] {
+            display: block;
+            margin: 0 auto 20px;
+        }
+        .controls {
+            margin-top: 15px;
+            text-align: center;
+        }
+        .controls label {
+            margin-right: 10px;
+        }
+        #canvas {
+            border: 1px solid #ccc;
+            width: 100%;
+            height: auto;
+            display: block;
+            margin: 15px auto;
+            touch-action: manipulation;
+            -webkit-tap-highlight-color: transparent;
+        }
+        button {
+            display: block;
+            width: 80%;
+            max-width: 300px;
+            margin: 15px auto;
+            padding: 10px;
+            font-size: 1em;
+            background: #007aff;
+            color: #fff;
+            border: none;
+            border-radius: 5px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Background Remover</h1>
+    <input type="file" id="imageInput" accept="image/*">
+    <!-- Threshold slider and display -->
+    <div class="controls">
+        <label for="thresholdRange">Threshold:</label>
+        <input type="range" id="thresholdRange" min="0" max="255" value="100">
+        <span id="thresholdValue">100</span>
+    </div>
+    <canvas id="canvas"></canvas>
+    <!-- Save button -->
+    <button id="saveBtn">Save as PNG</button>
+
+    <script>
+        const imageInput = document.getElementById('imageInput');
+        const canvas = document.getElementById('canvas');
+        const thresholdRange = document.getElementById('thresholdRange');
+        const thresholdValue = document.getElementById('thresholdValue');
+        const saveBtn = document.getElementById('saveBtn');
+        const ctx = canvas.getContext('2d');
+        let originalImageData = null; // To store original image data
+
+        // Update displayed threshold value when slider changes.
+        thresholdRange.addEventListener('input', () => {
+            thresholdValue.textContent = thresholdRange.value;
+            if (originalImageData) {
+                applyBackgroundRemoval(originalImageData, parseInt(thresholdRange.value, 10));
+            }
+        });
+
+        // Process an image file.
+        imageInput.addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(event) {
+                const img = new Image();
+                img.onload = function() {
+                    // Use the image's natural dimensions then scale responsively through CSS.
+                    canvas.width = img.width;
+                    canvas.height = img.height;
+                    ctx.drawImage(img, 0, 0);
+                    originalImageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                    // Apply background removal with current threshold.
+                    applyBackgroundRemoval(originalImageData, parseInt(thresholdRange.value, 10));
+                }
+                img.src = event.target.result;
+            };
+            reader.readAsDataURL(file);
+        });
+
+        // Function to loop through every pixel and make near-white ones transparent.
+        function applyBackgroundRemoval(imageData, threshold) {
+            // Create a copy of the original image data.
+            const newImageData = new ImageData(
+                new Uint8ClampedArray(imageData.data),
+                imageData.width,
+                imageData.height
+            );
+            const data = newImageData.data;
+            for (let i = 0; i < data.length; i += 4) {
+                if (data[i] > threshold && data[i + 1] > threshold && data[i + 2] > threshold) {
+                    data[i + 3] = 0; // Set alpha to 0 for near-white pixels.
+                }
+            }
+            ctx.putImageData(newImageData, 0, 0);
+        }
+
+        // Save canvas as a PNG with transparent background.
+        saveBtn.addEventListener('click', () => {
+            const dataURL = canvas.toDataURL('image/png');
+            const link = document.createElement('a');
+            link.href = dataURL;
+            link.download = 'transparent-image.png';
+            link.click();
+        });
+    </script>
+</body>
+</html>
